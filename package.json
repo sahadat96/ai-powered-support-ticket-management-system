@@ -1,0 +1,14 @@
+{
+  "name": "support-desk",
+  "private": true,
+  "scripts": {
+    "setup": "npm --prefix backend ci && npm --prefix frontend ci",
+    "dev:backend": "npm --prefix backend run start:dev",
+    "dev:frontend": "npm --prefix frontend run dev",
+    "build": "npm --prefix backend run build && npm --prefix frontend run build",
+    "test": "npm --prefix backend test && npm --prefix frontend test",
+    "db:migrate": "npm --prefix backend run migration:run",
+    "db:seed": "npm --prefix backend run seed"
+  },
+  "engines": { "node": ">=22.0.0" }
+}
