@@ -1,6 +1,7 @@
 import { ArgumentsHost, Catch, ExceptionFilter, HttpException, Logger } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { Request, Response } from 'express';
+import { TicketRuleError } from '../../modules/tickets/domain/ticket';
 
 @Catch()
 export class ApiExceptionFilter implements ExceptionFilter {
@@ -11,7 +12,9 @@ export class ApiExceptionFilter implements ExceptionFilter {
     const request = context.getRequest<Request>();
     let status = 500;
     let message: string | string[] = 'An unexpected error occurred. Please try again.';
-    if (error instanceof HttpException) {
+    if (error instanceof TicketRuleError) {
+      status = error.code === 'FORBIDDEN' ? 403 : 409; message = error.message;
+    } else if (error instanceof HttpException) {
       status = error.getStatus();
       const body = error.getResponse();
       message = typeof body === 'string' ? body : (body as { message: string | string[] }).message;
