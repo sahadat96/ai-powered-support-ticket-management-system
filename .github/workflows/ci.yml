@@ -1,0 +1,49 @@
+name: Quality checks
+on:
+  push:
+    branches: [sahadat, main, dev]
+  pull_request:
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: integration-password
+          POSTGRES_DB: ai-powered-ticket-management
+        ports: ['5432:5432']
+        options: --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:integration-password@localhost:5432/ai-powered-ticket-management?schema=public
+      JWT_SECRET: ci-test-only-secret-with-more-than-thirty-two-characters
+      WEB_ORIGIN: http://localhost:3000
+      API_URL: http://localhost:4000/api/v1
+      DEMO_PASSWORD: CiDemoPassword123!
+      NODE_ENV: development
+      NEXT_TELEMETRY_DISABLED: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run db:generate
+      - run: npm run typecheck
+      - run: npm run format:check
+      - run: npm test
+      - run: npm run test:e2e
+      - run: npm run ai:evaluate
+      - run: npm run build
+      - run: npm run db:migrate
+      - run: npm run db:seed
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:ui
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
