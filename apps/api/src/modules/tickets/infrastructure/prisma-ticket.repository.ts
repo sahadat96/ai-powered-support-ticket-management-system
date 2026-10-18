@@ -33,17 +33,14 @@ export class PrismaTicketRepository extends TicketRepository {
   async stats(actor: Actor): Promise<TicketStats> {
     const where: Prisma.TicketWhereInput = actor.role === 'CUSTOMER' ? {requesterId: actor.id} : {};
     const active = {notIn: ['RESOLVED', 'CLOSED'] as ('RESOLVED' | 'CLOSED')[]};
-    const [total, open, inProgress, resolved, urgent, unassigned, statuses, categories] = await this.prisma.$transaction([
-      this.prisma.ticket.count({where}),
-      this.prisma.ticket.count({where: {...where, status: 'OPEN'}}),
-      this.prisma.ticket.count({where: {...where, status: {in: ['IN_PROGRESS', 'WAITING_ON_CUSTOMER']}}}),
-      this.prisma.ticket.count({where: {...where, status: {in: ['RESOLVED', 'CLOSED']}}}),
-      this.prisma.ticket.count({where: {...where, status: active, priority: 'URGENT'}}),
-      this.prisma.ticket.count({where: {...where, status: active, assigneeId: null}}),
-      this.prisma.ticket.groupBy({by: ['status'], where, _count: true}),
-      this.prisma.ticket.groupBy({by: ['category'], where, _count: true}),
-    ], {isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead});
-    return {total, open, inProgress, resolved, urgent, unassigned, byStatus: statuses.map(r => ({status: r.status, count: r._count})), byCategory: categories.map(r => ({category: r.category, count: r._count}))};
+    return this.prisma.$transaction(async tx => {
+      const statuses = await tx.ticket.groupBy({by: ['status'], where, _count: {_all: true}});
+      const categories = await tx.ticket.groupBy({by: ['category'], where, _count: {_all: true}});
+      const urgent = await tx.ticket.count({where: {...where, status: active, priority: 'URGENT'}});
+      const unassigned = await tx.ticket.count({where: {...where, status: active, assigneeId: null}});
+      const count = (status: string) => statuses.find(r => r.status === status)?._count._all ?? 0;
+      return {total: statuses.reduce((sum, r) => sum + r._count._all, 0), open: count('OPEN'), inProgress: count('IN_PROGRESS') + count('WAITING_ON_CUSTOMER'), resolved: count('RESOLVED') + count('CLOSED'), urgent, unassigned, byStatus: statuses.map(r => ({status: r.status, count: r._count._all})), byCategory: categories.map(r => ({category: r.category, count: r._count._all}))};
+    }, {isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead});
   }
   async update(id: string, version: number, changes: TicketChanges, actorId: string, action: string, detail: string) {
     return this.prisma.$transaction(async tx => {
