@@ -1,5 +1,7 @@
 # Testing
 
+Verified locally on 18 October 2026: 47 Jest unit/model tests, 17 PostgreSQL HTTP integration tests, and 10 Chromium browser tests passed. Both production builds, TypeScript checks, formatting, and whitespace checks passed. The browser suite includes a 390px mobile layout, private-note visibility, ticket workflow, request-body limits, and proxy origin handling. Docker configuration was validated; container images and remote GitHub Actions were not executed.
+
 Install dependencies using the README setup steps. Run unit tests and static checks without a running browser:
 
 ```bash
@@ -51,18 +53,18 @@ Use `E2E_BASE_URL` and `E2E_API_URL` to select existing local servers. `PLAYWRIG
 
 ## Manual review
 
-| Scenario | Expected result |
-| --- | --- |
-| Submit an incomplete ticket | Inline validation; no ticket created |
+| Scenario                          | Expected result                                                 |
+| --------------------------------- | --------------------------------------------------------------- |
+| Submit an incomplete ticket       | Inline validation; no ticket created                            |
 | Create a duplicate-charge request | Saved ticket with explainable local classification and priority |
-| Search, filter, and change pages | Results and counts match the URL and database |
-| Sign in as another customer | Other customers' tickets cannot be read or changed |
-| Add an internal staff note | Visible to staff; absent from customer responses |
-| Start unassigned work | Rejected until an agent or administrator is assigned |
-| Save stale data from a second tab | Conflict shown; newer database changes retained |
-| Reply to a closed ticket | Rejected until it is reopened |
-| Interrupt the API connection | Understandable error and retry path |
-| Use a narrow viewport or keyboard | Navigation, forms, focus, and content remain usable |
+| Search, filter, and change pages  | Results and counts match the URL and database                   |
+| Sign in as another customer       | Other customers' tickets cannot be read or changed              |
+| Add an internal staff note        | Visible to staff; absent from customer responses                |
+| Start unassigned work             | Rejected until an agent or administrator is assigned            |
+| Save stale data from a second tab | Conflict shown; newer database changes retained                 |
+| Reply to a closed ticket          | Rejected until it is reopened                                   |
+| Interrupt the API connection      | Understandable error and retry path                             |
+| Use a narrow viewport or keyboard | Navigation, forms, focus, and content remain usable             |
 
 ## Continuous integration
 
