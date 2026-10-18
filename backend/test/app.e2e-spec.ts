@@ -3,10 +3,15 @@ import { INestApplication } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { randomUUID } from 'node:crypto';
 import request from 'supertest';
-import { DataSource } from 'typeorm';
 import { configureApp } from '../src/bootstrap';
+import { createPrismaClient } from '../src/database/prisma-client';
 import { DashboardStats, Ticket } from '../src/modules/tickets/domain/ticket';
+import { TicketRepository } from '../src/modules/tickets/domain/ticket.repository';
 import { UserRole } from '../src/modules/users/domain/user';
+import {
+  EmailAlreadyExistsError,
+  UserRepository,
+} from '../src/modules/users/domain/user.repository';
 
 type Client = ReturnType<typeof request.agent>;
 interface Actor {
@@ -20,11 +25,11 @@ describe('Support desk HTTP integration against PostgreSQL', () => {
   const runId = randomUUID();
   const password = `Assessment-${runId}`;
   const prefix = '/api/v1';
-  const emails = ['requester', 'other', 'agent', 'admin', 'injected'].map(
+  const emails = ['requester', 'other', 'agent', 'admin', 'injected', 'duplicate'].map(
     (name) => `e2e-${name}-${runId}@example.com`,
   );
   let app: INestApplication | undefined;
-  let data: DataSource | undefined;
+  let data: ReturnType<typeof createPrismaClient> | undefined;
   let verifiedDatabase = false;
   let customer: Actor;
   let otherCustomer: Actor;
@@ -85,14 +90,12 @@ describe('Support desk HTTP integration against PostgreSQL', () => {
       throw new Error('TEST_DATABASE_URL must use PostgreSQL');
     }
     assertTestDatabase(decodeURIComponent(parsed.pathname.slice(1)));
-    data = await new DataSource({
-      type: 'postgres',
-      url: testUrl,
-      synchronize: false,
-    }).initialize();
-    const [{ name }] = (await data.query('SELECT current_database() AS name')) as {
-      name: string;
-    }[];
+    data = createPrismaClient(testUrl);
+    const [{ name }] = await data.$queryRaw<
+      {
+        name: string;
+      }[]
+    >`SELECT current_database() AS name`;
     assertTestDatabase(name);
     verifiedDatabase = true;
 
@@ -111,14 +114,8 @@ describe('Support desk HTTP integration against PostgreSQL', () => {
     otherCustomer = await register(1);
     agent = await register(2);
     admin = await register(3);
-    await data.query('UPDATE support.users SET role = $1 WHERE id = $2', [
-      UserRole.AGENT,
-      agent.id,
-    ]);
-    await data.query('UPDATE support.users SET role = $1 WHERE id = $2', [
-      UserRole.ADMIN,
-      admin.id,
-    ]);
+    await data.user.update({ where: { id: agent.id }, data: { role: UserRole.AGENT } });
+    await data.user.update({ where: { id: admin.id }, data: { role: UserRole.ADMIN } });
     for (const actor of [customer, otherCustomer, agent, admin]) {
       await actor.client
         .post(`${prefix}/auth/login`)
@@ -134,33 +131,30 @@ describe('Support desk HTTP integration against PostgreSQL', () => {
 
   afterAll(async () => {
     try {
-      if (data?.isInitialized && verifiedDatabase) {
+      if (data && verifiedDatabase) {
         // Remove only accounts created by this run and tickets requested by those accounts.
         // This deliberately avoids truncate, schema drops, or deleting unrelated fixtures.
-        await data.transaction(async (manager) => {
-          const users = (await manager.query(
-            'SELECT id FROM support.users WHERE email = ANY($1::text[])',
-            [emails],
-          )) as { id: string }[];
+        await data.$transaction(async (transaction) => {
+          const users = await transaction.user.findMany({
+            where: { email: { in: emails } },
+            select: { id: true },
+          });
           const ids = users.map((user) => user.id);
           if (!ids.length) return;
-          await manager.query(
-            'DELETE FROM support.comments WHERE ticket_id IN (SELECT id FROM support.tickets WHERE requester_id = ANY($1::uuid[]))',
-            [ids],
-          );
-          await manager.query(
-            'DELETE FROM support.ticket_events WHERE ticket_id IN (SELECT id FROM support.tickets WHERE requester_id = ANY($1::uuid[]))',
-            [ids],
-          );
-          await manager.query('DELETE FROM support.tickets WHERE requester_id = ANY($1::uuid[])', [
-            ids,
-          ]);
-          await manager.query('DELETE FROM support.users WHERE id = ANY($1::uuid[])', [ids]);
+          const tickets = await transaction.ticket.findMany({
+            where: { requesterId: { in: ids } },
+            select: { id: true },
+          });
+          const ticketIds = tickets.map((ticket) => ticket.id);
+          await transaction.comment.deleteMany({ where: { ticketId: { in: ticketIds } } });
+          await transaction.ticketEvent.deleteMany({ where: { ticketId: { in: ticketIds } } });
+          await transaction.ticket.deleteMany({ where: { id: { in: ticketIds } } });
+          await transaction.user.deleteMany({ where: { id: { in: ids } } });
         });
       }
     } finally {
       if (app) await app.close();
-      if (data?.isInitialized) await data.destroy();
+      if (data) await data.$disconnect();
     }
   });
 
@@ -219,11 +213,61 @@ describe('Support desk HTTP integration against PostgreSQL', () => {
         role: 'ADMIN',
       })
       .expect(400);
-    const [{ count }] = (await data!.query(
-      'SELECT COUNT(*)::int AS count FROM support.users WHERE email = $1',
-      [emails[4]],
-    )) as { count: number }[];
+    const count = await data!.user.count({ where: { email: emails[4] } });
     expect(count).toBe(0);
+  });
+
+  it('maps concurrent duplicate-email database failures to the domain error', async () => {
+    const repository = app!.get(UserRepository);
+    const { passwordHash } = await data!.user.findUniqueOrThrow({
+      where: { id: customer.id },
+      select: { passwordHash: true },
+    });
+    const input = {
+      email: emails[5],
+      name: 'Concurrent registration test',
+      role: UserRole.CUSTOMER,
+      passwordHash,
+    };
+    const outcomes = await Promise.allSettled([repository.create(input), repository.create(input)]);
+    expect(outcomes.filter((outcome) => outcome.status === 'fulfilled')).toHaveLength(1);
+    const failures = outcomes.filter(
+      (outcome): outcome is PromiseRejectedResult => outcome.status === 'rejected',
+    );
+    expect(failures).toHaveLength(1);
+    expect(failures[0].reason).toBeInstanceOf(EmailAlreadyExistsError);
+    expect(await data!.user.count({ where: { email: emails[5] } })).toBe(1);
+  });
+
+  it('rolls back the ticket update when inserting its audit event violates a foreign key', async () => {
+    const repository = app!.get(TicketRepository);
+    const select = { title: true, version: true, updatedAt: true, deletedAt: true } as const;
+    const before = await data!.ticket.findUniqueOrThrow({
+      where: { id: ownTicket.id },
+      select,
+    });
+    expect(before.deletedAt).toBeNull();
+    const eventCount = await data!.ticketEvent.count({ where: { ticketId: ownTicket.id } });
+    const missingActorId = randomUUID();
+    expect(await data!.user.findUnique({ where: { id: missingActorId } })).toBeNull();
+
+    await expect(
+      repository.update(
+        ownTicket.id,
+        before.version,
+        { title: `${runId} This failed update must be rolled back` },
+        missingActorId,
+        'UPDATED',
+        'This audit event has no valid actor',
+      ),
+    ).rejects.toMatchObject({ code: 'P2003' });
+
+    const after = await data!.ticket.findUniqueOrThrow({
+      where: { id: ownTicket.id },
+      select,
+    });
+    expect(after).toEqual(before);
+    expect(await data!.ticketEvent.count({ where: { ticketId: ownTicket.id } })).toBe(eventCount);
   });
 
   it('validates ticket content, unknown fields, versions, UUIDs, and pagination', async () => {
@@ -457,10 +501,11 @@ describe('Support desk HTTP integration against PostgreSQL', () => {
     await customer.client.get(`${prefix}/tickets/${open.id}`).expect(404);
     const list = await customer.client.get(`${prefix}/tickets`).query({ limit: 50 }).expect(200);
     expect(list.body.items.map((item: Ticket) => item.id)).not.toContain(open.id);
-    const [stored] = (await data!.query('SELECT deleted_at FROM support.tickets WHERE id = $1', [
-      open.id,
-    ])) as { deleted_at: Date | null }[];
-    expect(stored.deleted_at).not.toBeNull();
+    const stored = await data!.ticket.findUniqueOrThrow({
+      where: { id: open.id },
+      select: { deletedAt: true },
+    });
+    expect(stored.deletedAt).not.toBeNull();
 
     const created = await createTicket(customer, 'Administrator archive integration case');
     const closed = (
@@ -531,13 +576,10 @@ describe('Support desk HTTP integration against PostgreSQL', () => {
   it('scopes dashboard aggregates to the requester and keeps staff aggregates complete', async () => {
     const customerResponse = await customer.client.get(`${prefix}/tickets/stats`).expect(200);
     const staffResponse = await agent.client.get(`${prefix}/tickets/stats`).expect(200);
-    const [{ total: ownTotal }] = (await data!.query(
-      'SELECT COUNT(*)::int AS total FROM support.tickets WHERE requester_id = $1 AND deleted_at IS NULL',
-      [customer.id],
-    )) as { total: number }[];
-    const [{ total: allTotal }] = (await data!.query(
-      'SELECT COUNT(*)::int AS total FROM support.tickets WHERE deleted_at IS NULL',
-    )) as { total: number }[];
+    const ownTotal = await data!.ticket.count({
+      where: { requesterId: customer.id, deletedAt: null },
+    });
+    const allTotal = await data!.ticket.count({ where: { deletedAt: null } });
     expect(customerResponse.body.total).toBe(ownTotal);
     expect(staffResponse.body.total).toBe(allTotal);
     expect(allTotal).toBeGreaterThan(ownTotal);

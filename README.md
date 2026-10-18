@@ -6,7 +6,7 @@ This is an **AI-assisted reference project**. The attached assessment prohibits 
 
 ## Run locally
 
-Requirements: Node.js 22 or newer, npm, and PostgreSQL 14 or newer. The database must already exist and the configured account must be able to create tables and a schema.
+Requirements: Node.js 22.12 LTS or Node.js 24 and newer, npm, and PostgreSQL 14 or newer. The database must already exist and the configured account must be able to create tables and a schema.
 
 ```bash
 npm ci
@@ -28,12 +28,14 @@ DEMO_PASSWORD=your-local-demo-password
 
 Generate a random JWT secret with `openssl rand -hex 32`. URL-encode special characters in database credentials. The backend loads `backend/.env` first, then the root `.env`; a process environment variable takes precedence over both. The frontend reads `frontend/.env.local`, with `API_URL=http://localhost:4000`.
 
-The project uses the existing `ai-powered-ticket-management` database and creates its tables in the `support` schema. Existing tables in `public` are preserved. Migrations are explicit; schema synchronization is disabled.
+The project uses Prisma 7 with the existing `ai-powered-ticket-management` database. Its tables and Prisma migration history live in the `support` schema. The backend and Prisma CLI select that schema automatically; the database URL above can stay as written. Existing tables and Prisma migration history in `public` are preserved.
 
 ```bash
 npm run db:migrate
 npm run db:seed
 ```
+
+`db:migrate` deploys the checked-in SQL migrations. On a database created by the earlier TypeORM version, it validates the existing support schema before recording the Prisma baseline as applied. It preserves tickets, accounts, passwords, conversations, audit history, and the old migration bookkeeping. Starting the API does not change the schema. See [database migration details](docs/architecture.md#data-ownership-and-existing-database-preservation).
 
 Start the applications in separate terminals:
 
@@ -87,7 +89,10 @@ backend/
     users/      # User persistence and assignable team members
     tickets/    # Ticket workflow, conversations, and audit history
     ai/         # Local classifier, training data, and evaluation
-  src/database/ # Explicit migrations and opt-in demo seed
+  prisma/       # Prisma schema and explicit SQL migrations
+  prisma.config.ts
+  scripts/      # Existing-schema validation and migration deployment
+  src/database/ # Shared Prisma client module and opt-in demo seed
   test/         # HTTP integration tests against a separate database
 frontend/
   src/app/      # Login, dashboard, ticket list, creation, and detail routes
@@ -96,7 +101,7 @@ frontend/
 docs/
 ```
 
-Each backend business module separates `presentation`, `application`, `domain`, and `infrastructure`. Domain types and workflow rules are independent of TypeORM. Repository ports are wired to PostgreSQL adapters through Nest providers. The API controls authorization and validation; the frontend uses a same-origin proxy and an HTTP-only session cookie.
+Each backend business module separates `presentation`, `application`, `domain`, and `infrastructure`. Domain types and workflow rules are independent of Prisma. Repository ports are wired to Prisma PostgreSQL adapters through Nest providers. The generated Prisma client stays in infrastructure; the API controls authorization and validation, and the frontend uses a same-origin proxy and an HTTP-only session cookie.
 
 See [architecture and database relationships](docs/architecture.md), [AI implementation and evaluation](docs/ai-evaluation.md), and [testing instructions](docs/testing.md).
 
@@ -123,7 +128,7 @@ docker compose up --build -d
 docker compose run --rm api node dist/database/seed.js
 ```
 
-Compose waits for PostgreSQL, runs compiled migrations, then starts the API and frontend. The seed uses the same explicit `SEED_DEMO` and `DEMO_PASSWORD` values as local setup. Container demo mode intentionally uses the development API environment for HTTP cookies; the frontend runs its production build. Images exclude environment files and run application processes as a non-root user.
+Compose waits for PostgreSQL, runs the same Prisma migration wrapper as local setup, then starts the API and frontend. The image includes the generated client, Prisma CLI, schema, and SQL migrations. The seed uses the same explicit `SEED_DEMO` and `DEMO_PASSWORD` values as local setup. Container demo mode intentionally uses the development API environment for HTTP cookies; the frontend runs its production build. Images exclude environment files and run application processes as a non-root user.
 
 ```bash
 docker compose logs -f api web

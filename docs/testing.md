@@ -1,6 +1,6 @@
 # Testing
 
-Verified locally on 18 October 2026: 47 Jest unit/model tests, 17 PostgreSQL HTTP integration tests, and 10 Chromium browser tests passed. Both production builds, TypeScript checks, formatting, and whitespace checks passed. The browser suite includes a 390px mobile layout, private-note visibility, ticket workflow, request-body limits, and proxy origin handling. Docker configuration was validated; container images and remote GitHub Actions were not executed.
+Prisma verification on 18 October 2026 passed 47 Jest unit/model tests, 19 PostgreSQL integration tests, and 10 Chromium browser tests. Prisma schema validation, backend type checking/build, formatting, and whitespace checks passed. Fresh-database migration and repeatable seeding passed. All 10 original application/public tables matched their row fingerprints after baseline adoption and seeding. The browser suite includes a 390px mobile layout, private-note visibility, ticket workflow, request-body limits, and proxy origin handling. Container images and remote GitHub Actions were not executed.
 
 Install dependencies using the README setup steps. Run unit tests and static checks without a running browser:
 
@@ -27,9 +27,22 @@ DATABASE_URL="$TEST_DATABASE_URL" npm run db:migrate
 npm --prefix backend run test:e2e
 ```
 
-The shell override selects the test database for migrations; it does not change the normal database URL in `.env`. The suite starts Nest in-process against `TEST_DATABASE_URL`, registers uniquely named accounts, and removes records belonging to that run after testing. It does not truncate the schema or remove unrelated fixtures. No seed is needed in the test database.
+The shell override selects the test database for migrations; it does not change the normal database URL in `.env`. Both the migration CLI and runtime Prisma client use its `support` schema. The suite starts Nest in-process against `TEST_DATABASE_URL`, registers uniquely named accounts, and removes records belonging to that run after testing. It does not truncate the schema or remove unrelated fixtures. No seed is needed in the test database.
 
 Coverage includes protected routes, cookie authentication, denied privilege escalation, input validation, cross-customer isolation, scoped lists and dashboard counts, internal notes, assignment, legal and illegal transitions, optimistic concurrency, closed-ticket replies, and archival.
+
+## Prisma migration verification
+
+Dependency installation generates the Prisma client; the backend build regenerates it when the schema changes. Validate the schema from the backend directory:
+
+```bash
+cd backend
+npx prisma validate
+```
+
+Verify migration deployment against a dedicated test database first. An empty database must receive the support tables and `support._prisma_migrations`. Running `db:migrate` again should leave existing records unchanged. To check adoption, use a disposable copy of the earlier TypeORM database and confirm that accounts, passwords, ticket numbers, comments, events, database constraints, and indexes remain intact. Public tables, their `_prisma_migrations`, and the legacy `support_migrations` must remain unchanged.
+
+Schema changes are developed with `prisma migrate dev` against a separate disposable development database. Review the generated SQL, including existing CHECK constraints and partial indexes, before deployment. Integration tests use `db:migrate` and never require a database reset.
 
 ## Browser workflow
 
@@ -68,4 +81,4 @@ Use `E2E_BASE_URL` and `E2E_API_URL` to select existing local servers. `PLAYWRIG
 
 ## Continuous integration
 
-The GitHub Actions workflow installs locked dependencies, provisions PostgreSQL, migrates independent application and test databases, seeds the application demo, runs backend unit and HTTP tests, evaluates the model, builds both projects, and runs Playwright in Chromium. Environment values in CI are disposable test credentials, not deployment secrets. Dockerfiles and Compose are optional local tooling; container execution is not part of the automated test claim.
+The GitHub Actions workflow installs locked dependencies and generates the Prisma client, validates the Prisma schema, provisions PostgreSQL, migrates independent application and test databases, seeds the application demo, runs backend unit and HTTP tests, evaluates the model, builds both projects, and runs Playwright in Chromium. Environment values in CI are disposable test credentials, not deployment secrets. Dockerfiles and Compose are optional local tooling; container execution is not part of the automated test claim.

@@ -150,5 +150,8 @@ playwright-report/
 test-results/
 .playwright/
 
+# Prisma generates this from the tracked schema during install/build.
+backend/src/generated/
+
 # Turbo Repo
 .turbo

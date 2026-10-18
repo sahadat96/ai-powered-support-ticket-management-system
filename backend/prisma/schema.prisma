@@ -1,0 +1,84 @@
+generator client {
+  provider            = "prisma-client"
+  output              = "../src/generated/prisma"
+  moduleFormat        = "cjs"
+  importFileExtension = ""
+}
+
+datasource db {
+  provider = "postgresql"
+  schemas  = ["support"]
+}
+
+model User {
+  id               String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email            String        @unique(map: "users_email_key") @db.VarChar(254)
+  name             String        @db.VarChar(100)
+  passwordHash     String        @map("password_hash") @db.VarChar(255)
+  role             String        @default("CUSTOMER") @db.VarChar(20)
+  createdAt        DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  requestedTickets Ticket[]      @relation("RequestedTickets")
+  assignedTickets  Ticket[]      @relation("AssignedTickets")
+  comments         Comment[]
+  events           TicketEvent[]
+
+  @@map("users")
+  @@schema("support")
+}
+
+model Ticket {
+  id          String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  number      Int           @unique(map: "tickets_number_key") @default(autoincrement())
+  title       String        @db.VarChar(160)
+  description String        @db.Text
+  status      String        @default("OPEN") @db.VarChar(20)
+  priority    String        @db.VarChar(20)
+  category    String        @db.VarChar(20)
+  requesterId String        @map("requester_id") @db.Uuid
+  assigneeId  String?       @map("assignee_id") @db.Uuid
+  ai          Json          @db.JsonB
+  version     Int           @default(1)
+  createdAt   DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  resolvedAt  DateTime?     @map("resolved_at") @db.Timestamptz(6)
+  deletedAt   DateTime?     @map("deleted_at") @db.Timestamptz(6)
+  requester   User          @relation("RequestedTickets", fields: [requesterId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "tickets_requester_id_fkey")
+  assignee    User?         @relation("AssignedTickets", fields: [assigneeId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "tickets_assignee_id_fkey")
+  comments    Comment[]
+  events      TicketEvent[]
+
+  // Partial indexes and database CHECK constraints are preserved in migration.sql.
+  @@map("tickets")
+  @@schema("support")
+}
+
+model Comment {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ticketId  String   @map("ticket_id") @db.Uuid
+  authorId  String   @map("author_id") @db.Uuid
+  body      String   @db.Text
+  internal  Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  ticket    Ticket   @relation(fields: [ticketId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "comments_ticket_id_fkey")
+  author    User     @relation(fields: [authorId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "comments_author_id_fkey")
+
+  @@index([ticketId, createdAt, id], map: "comments_ticket_idx")
+  @@map("comments")
+  @@schema("support")
+}
+
+model TicketEvent {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ticketId  String   @map("ticket_id") @db.Uuid
+  actorId   String   @map("actor_id") @db.Uuid
+  action    String   @db.VarChar(40)
+  detail    String   @db.Text
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  ticket    Ticket   @relation(fields: [ticketId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "ticket_events_ticket_id_fkey")
+  actor     User     @relation(fields: [actorId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "ticket_events_actor_id_fkey")
+
+  @@index([ticketId, createdAt, id], map: "ticket_events_ticket_idx")
+  @@map("ticket_events")
+  @@schema("support")
+}

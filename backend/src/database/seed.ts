@@ -1,12 +1,12 @@
 import * as bcrypt from 'bcryptjs';
-import { AppDataSource } from './data-source';
+import { config } from 'dotenv';
+import type { Prisma } from '../generated/prisma/client';
+import { createPrismaClient } from './prisma-client';
 import { TriageService } from '../modules/ai/application/triage.service';
 import { TicketCategory, TicketPriority, TicketStatus } from '../modules/tickets/domain/ticket';
-import { CommentOrmEntity } from '../modules/tickets/infrastructure/comment.orm-entity';
-import { EventOrmEntity } from '../modules/tickets/infrastructure/event.orm-entity';
-import { TicketOrmEntity } from '../modules/tickets/infrastructure/ticket.orm-entity';
 import { UserRole } from '../modules/users/domain/user';
-import { UserOrmEntity } from '../modules/users/infrastructure/user.orm-entity';
+
+config({ path: ['.env', '../.env'], quiet: true });
 
 interface DemoTicket {
   title: string;
@@ -122,127 +122,143 @@ async function seed(): Promise<void> {
     );
   }
 
-  await AppDataSource.initialize();
+  const connectionString = process.env.DATABASE_URL;
+  if (!connectionString) throw new Error('DATABASE_URL is required to seed demo records.');
+  const data = createPrismaClient(connectionString);
   try {
     const triage = new TriageService();
     const passwordHash = await bcrypt.hash(password, 12);
-    const result = await AppDataSource.transaction(async (manager) => {
-      // Concurrent invocations cannot duplicate demo fixtures. This lock ends with the transaction.
-      await manager.query("SELECT pg_advisory_xact_lock(hashtext('support-demo-seed-v1'))");
-      const userRepository = manager.getRepository(UserOrmEntity);
-      const users: UserOrmEntity[] = [];
-      let createdUsers = 0;
-      for (const account of [
-        { email: 'admin@support.local', name: 'Alex Morgan', role: UserRole.ADMIN },
-        { email: 'agent@support.local', name: 'Jordan Lee', role: UserRole.AGENT },
-        { email: 'customer@support.local', name: 'Sam Taylor', role: UserRole.CUSTOMER },
-      ]) {
-        let user = await userRepository.findOneBy({ email: account.email });
-        if (user && user.role !== account.role) {
-          throw new Error(
-            `An existing demo email has an unexpected role: ${account.email}. Existing accounts were left unchanged.`,
+    const result = await data.$transaction(
+      async (transaction) => {
+        // Concurrent invocations cannot duplicate demo fixtures. This lock ends with the transaction.
+        await transaction.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('support-demo-seed-v1'))`;
+        const users: { id: string; role: string }[] = [];
+        let createdUsers = 0;
+        for (const account of [
+          { email: 'admin@support.local', name: 'Alex Morgan', role: UserRole.ADMIN },
+          { email: 'agent@support.local', name: 'Jordan Lee', role: UserRole.AGENT },
+          { email: 'customer@support.local', name: 'Sam Taylor', role: UserRole.CUSTOMER },
+        ]) {
+          let user = await transaction.user.findUnique({ where: { email: account.email } });
+          if (user && user.role !== account.role) {
+            throw new Error(
+              `An existing demo email has an unexpected role: ${account.email}. Existing accounts were left unchanged.`,
+            );
+          }
+          if (!user) {
+            user = await transaction.user.create({ data: { ...account, passwordHash } });
+            createdUsers += 1;
+          }
+          users.push(user);
+        }
+        const [, agent, customer] = users;
+        let createdTickets = 0;
+        const now = Date.now();
+        for (const [index, fixture] of DEMO_TICKETS.entries()) {
+          const id = `f0000000-0000-4000-8000-${String(index + 1).padStart(12, '0')}`;
+          // Do not reset edited, archived, reassigned, or otherwise existing demo tickets.
+          if (await transaction.ticket.findUnique({ where: { id }, select: { id: true } }))
+            continue;
+          const createdAt = new Date(
+            now - ((DEMO_TICKETS.length - 1 - index) * 16 + 2) * 60 * 60 * 1000,
           );
-        }
-        if (!user) {
-          user = await userRepository.save(userRepository.create({ ...account, passwordHash }));
-          createdUsers += 1;
-        }
-        users.push(user);
-      }
-      const [, agent, customer] = users;
-      const ticketRepository = manager.getRepository(TicketOrmEntity);
-      const eventRepository = manager.getRepository(EventOrmEntity);
-      let createdTickets = 0;
-      const now = Date.now();
-      for (const [index, fixture] of DEMO_TICKETS.entries()) {
-        const id = `f0000000-0000-4000-8000-${String(index + 1).padStart(12, '0')}`;
-        // Do not reset edited, archived, reassigned, or otherwise existing demo tickets.
-        if (await ticketRepository.existsBy({ id })) continue;
-        const createdAt = new Date(
-          now - ((DEMO_TICKETS.length - 1 - index) * 16 + 2) * 60 * 60 * 1000,
-        );
-        const updatedAt = new Date(createdAt.getTime() + 30 * 60 * 1000);
-        const ticket = await ticketRepository.save(
-          ticketRepository.create({
-            id,
-            title: fixture.title,
-            description: fixture.description,
-            category: fixture.category,
-            priority: fixture.priority,
-            status: fixture.status,
-            requesterId: customer.id,
-            assigneeId: fixture.assigned ? agent.id : null,
-            ai: triage.analyze(fixture.title, fixture.description),
-            version: 1,
-            createdAt,
-            updatedAt,
-            deletedAt: null,
-            resolvedAt: ['RESOLVED', 'CLOSED'].includes(fixture.status) ? updatedAt : null,
-          }),
-        );
-        await eventRepository.insert({
-          ticketId: ticket.id,
-          actorId: customer.id,
-          action: 'CREATED',
-          detail: 'Ticket created and automatically triaged',
-          createdAt,
-        });
-        if (fixture.assigned) {
-          await eventRepository.insert({
-            ticketId: ticket.id,
-            actorId: agent.id,
-            action: 'ASSIGNED',
-            detail: 'Assigned to Jordan Lee',
-            createdAt: new Date(createdAt.getTime() + 5 * 60 * 1000),
+          const updatedAt = new Date(createdAt.getTime() + 30 * 60 * 1000);
+          const ticket = await transaction.ticket.create({
+            data: {
+              id,
+              title: fixture.title,
+              description: fixture.description,
+              category: fixture.category,
+              priority: fixture.priority,
+              status: fixture.status,
+              requesterId: customer.id,
+              assigneeId: fixture.assigned ? agent.id : null,
+              ai: triage.analyze(
+                fixture.title,
+                fixture.description,
+              ) as unknown as Prisma.InputJsonValue,
+              version: 1,
+              createdAt,
+              updatedAt,
+              deletedAt: null,
+              resolvedAt: ['RESOLVED', 'CLOSED'].includes(fixture.status) ? updatedAt : null,
+            },
           });
-        }
-        if (fixture.status !== 'OPEN') {
-          await eventRepository.insert({
-            ticketId: ticket.id,
-            actorId: agent.id,
-            action: 'STATUS_CHANGED',
-            detail: `Status changed from OPEN to ${fixture.status}`,
-            createdAt: updatedAt,
+          await transaction.ticketEvent.create({
+            data: {
+              ticketId: ticket.id,
+              actorId: customer.id,
+              action: 'CREATED',
+              detail: 'Ticket created and automatically triaged',
+              createdAt,
+            },
           });
+          if (fixture.assigned) {
+            await transaction.ticketEvent.create({
+              data: {
+                ticketId: ticket.id,
+                actorId: agent.id,
+                action: 'ASSIGNED',
+                detail: 'Assigned to Jordan Lee',
+                createdAt: new Date(createdAt.getTime() + 5 * 60 * 1000),
+              },
+            });
+          }
+          if (fixture.status !== 'OPEN') {
+            await transaction.ticketEvent.create({
+              data: {
+                ticketId: ticket.id,
+                actorId: agent.id,
+                action: 'STATUS_CHANGED',
+                detail: `Status changed from OPEN to ${fixture.status}`,
+                createdAt: updatedAt,
+              },
+            });
+          }
+          if (index === 0) {
+            await transaction.comment.createMany({
+              data: [
+                {
+                  ticketId: ticket.id,
+                  authorId: agent.id,
+                  internal: false,
+                  body: 'Thanks for the invoice reference. We are checking the duplicate charge with our billing team and will update you here.',
+                  createdAt: new Date(createdAt.getTime() + 10 * 60 * 1000),
+                },
+                {
+                  ticketId: ticket.id,
+                  authorId: agent.id,
+                  internal: true,
+                  body: 'Billing review: compare both payment references before authorizing a refund. This note is visible only to the support team.',
+                  createdAt: new Date(createdAt.getTime() + 20 * 60 * 1000),
+                },
+              ],
+            });
+            await transaction.ticketEvent.createMany({
+              data: [
+                {
+                  ticketId: ticket.id,
+                  actorId: agent.id,
+                  action: 'COMMENT_ADDED',
+                  detail: 'A reply was added to the conversation',
+                  createdAt: new Date(createdAt.getTime() + 10 * 60 * 1000),
+                },
+                {
+                  ticketId: ticket.id,
+                  actorId: agent.id,
+                  action: 'INTERNAL_NOTE_ADDED',
+                  detail: 'A team member added an internal note',
+                  createdAt: new Date(createdAt.getTime() + 20 * 60 * 1000),
+                },
+              ],
+            });
+          }
+          createdTickets += 1;
         }
-        if (index === 0) {
-          await manager.getRepository(CommentOrmEntity).insert([
-            {
-              ticketId: ticket.id,
-              authorId: agent.id,
-              internal: false,
-              body: 'Thanks for the invoice reference. We are checking the duplicate charge with our billing team and will update you here.',
-              createdAt: new Date(createdAt.getTime() + 10 * 60 * 1000),
-            },
-            {
-              ticketId: ticket.id,
-              authorId: agent.id,
-              internal: true,
-              body: 'Billing review: compare both payment references before authorizing a refund. This note is visible only to the support team.',
-              createdAt: new Date(createdAt.getTime() + 20 * 60 * 1000),
-            },
-          ]);
-          await eventRepository.insert([
-            {
-              ticketId: ticket.id,
-              actorId: agent.id,
-              action: 'COMMENT_ADDED',
-              detail: 'A reply was added to the conversation',
-              createdAt: new Date(createdAt.getTime() + 10 * 60 * 1000),
-            },
-            {
-              ticketId: ticket.id,
-              actorId: agent.id,
-              action: 'INTERNAL_NOTE_ADDED',
-              detail: 'A team member added an internal note',
-              createdAt: new Date(createdAt.getTime() + 20 * 60 * 1000),
-            },
-          ]);
-        }
-        createdTickets += 1;
-      }
-      return { createdUsers, createdTickets };
-    });
+        return { createdUsers, createdTickets };
+      },
+      { timeout: 30_000 },
+    );
     console.log(
       `Demo seed complete: ${result.createdUsers} users and ${result.createdTickets} tickets created. Existing records and passwords were preserved.`,
     );
@@ -250,14 +266,14 @@ async function seed(): Promise<void> {
       'Demo accounts: admin@support.local, agent@support.local, customer@support.local. Use the configured DEMO_PASSWORD for newly created accounts.',
     );
   } finally {
-    await AppDataSource.destroy();
+    await data.$disconnect();
   }
 }
 
 seed().catch((error: unknown) => {
   // Driver errors can contain SQL parameters. Keep credentials and user records out of terminal output.
   const message =
-    error instanceof Error && !('query' in error)
+    error instanceof Error && !error.name.startsWith('Prisma') && !('query' in error)
       ? error.message
       : 'Database operation failed; check database availability and migrations.';
   console.error(`Demo seed failed: ${message}`);
