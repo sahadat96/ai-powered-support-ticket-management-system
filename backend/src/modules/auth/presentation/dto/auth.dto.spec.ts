@@ -11,20 +11,26 @@ describe('Registration validation', () => {
   };
 
   it('rejects whitespace-only names and passwords shorter than ten characters', async () => {
-    const errors = await validate(plainToInstance(RegisterDto, {
-      ...valid,
-      name: '   ',
-      password: 'short',
-    }));
+    const errors = await validate(
+      plainToInstance(RegisterDto, {
+        ...valid,
+        name: '   ',
+        password: 'short',
+      }),
+    );
 
-    expect(errors.map((error) => error.property)).toEqual(expect.arrayContaining(['name', 'password']));
+    expect(errors.map((error) => error.property)).toEqual(
+      expect.arrayContaining(['name', 'password']),
+    );
   });
 
   it('rejects passwords that exceed bcrypt byte limits, including Unicode', async () => {
-    const errors = await validate(plainToInstance(RegisterDto, {
-      ...valid,
-      password: '🔐'.repeat(20),
-    }));
+    const errors = await validate(
+      plainToInstance(RegisterDto, {
+        ...valid,
+        password: '🔐'.repeat(20),
+      }),
+    );
 
     expect(errors.some((error) => error.property === 'password')).toBe(true);
   });
@@ -36,9 +42,14 @@ describe('Registration validation', () => {
       forbidNonWhitelisted: true,
     });
 
-    await expect(pipe.transform({ ...valid, role: 'ADMIN' }, {
-      type: 'body',
-      metatype: RegisterDto,
-    })).rejects.toThrow('Bad Request Exception');
+    await expect(
+      pipe.transform(
+        { ...valid, role: 'ADMIN' },
+        {
+          type: 'body',
+          metatype: RegisterDto,
+        },
+      ),
+    ).rejects.toThrow('Bad Request Exception');
   });
 });

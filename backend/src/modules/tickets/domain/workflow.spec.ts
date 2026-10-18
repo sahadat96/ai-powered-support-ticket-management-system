@@ -1,4 +1,4 @@
-import {allowedTransitions, transitionError} from './workflow';
+import { allowedTransitions, transitionError } from './workflow';
 
 describe('ticket workflow', () => {
   it('requires assignment before work begins or is resolved', () => {

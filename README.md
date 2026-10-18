@@ -45,11 +45,11 @@ npm run dev:backend
 npm run dev:frontend
 ```
 
-| Service | Local address |
-| --- | --- |
-| Application | <http://localhost:3000> |
-| Swagger / OpenAPI | <http://localhost:4000/docs> |
-| API | <http://localhost:4000/api/v1> |
+| Service               | Local address                         |
+| --------------------- | ------------------------------------- |
+| Application           | <http://localhost:3000>               |
+| Swagger / OpenAPI     | <http://localhost:4000/docs>          |
+| API                   | <http://localhost:4000/api/v1>        |
 | Database health check | <http://localhost:4000/api/v1/health> |
 
 No hosted deployment is claimed. Both services run locally, and optional container setup is described below.
@@ -58,11 +58,11 @@ No hosted deployment is claimed. Both services run locally, and optional contain
 
 The opt-in seed creates these accounts, ten example tickets, conversation replies, an internal note, and activity history:
 
-| Email | Role | Password |
-| --- | --- | --- |
-| `admin@support.local` | Administrator | Your configured `DEMO_PASSWORD` |
-| `agent@support.local` | Agent | Your configured `DEMO_PASSWORD` |
-| `customer@support.local` | Customer | Your configured `DEMO_PASSWORD` |
+| Email                    | Role          | Password                        |
+| ------------------------ | ------------- | ------------------------------- |
+| `admin@support.local`    | Administrator | Your configured `DEMO_PASSWORD` |
+| `agent@support.local`    | Agent         | Your configured `DEMO_PASSWORD` |
+| `customer@support.local` | Customer      | Your configured `DEMO_PASSWORD` |
 
 For a disposable local demo, `DEMO_PASSWORD=SupportDemo!2026` is a usable example. Seeding requires `SEED_DEMO=true` and is disabled when `NODE_ENV=production`. Running it again preserves existing accounts, passwords, and tickets; changing the environment value does not reset an existing account password.
 

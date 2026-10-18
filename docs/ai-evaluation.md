@@ -14,14 +14,14 @@ from a labeled English corpus. Inference sums log likelihoods with add-one
 Laplace smoothing and converts the class scores into relative scores. It does
 not match a fixed category by keyword rules or claim to invoke an LLM.
 
-| Output | Method |
-| --- | --- |
-| Category | Trained multinomial naive Bayes over English word and word-pair features |
-| Confidence | Normalized relative class score; uncalibrated |
-| Priority | Explicit security, service outage, blocked access, duplicate charge, and nonurgent request rules |
-| Summary | Title and first description sentence, truncated to 240 characters |
-| Suggested reply | Editable category template with requests for relevant details |
-| Explanation | Learned category signals, fallback reason if used, matching priority rule, and confidence caveat |
+| Output          | Method                                                                                           |
+| --------------- | ------------------------------------------------------------------------------------------------ |
+| Category        | Trained multinomial naive Bayes over English word and word-pair features                         |
+| Confidence      | Normalized relative class score; uncalibrated                                                    |
+| Priority        | Explicit security, service outage, blocked access, duplicate charge, and nonurgent request rules |
+| Summary         | Title and first description sentence, truncated to 240 characters                                |
+| Suggested reply | Editable category template with requests for relevant details                                    |
+| Explanation     | Learned category signals, fallback reason if used, matching priority rule, and confidence caveat |
 
 The provider is `local-naive-bayes`, and the current model version is
 `nb-en-v1.0.0`. The model is fitted once per Nest service instance; request
@@ -49,12 +49,12 @@ The command prints training/evaluation counts, accuracy, per-category precision,
 recall and F1, macro F1, the confusion matrix, and any misclassified cases. The
 verified result for this version is:
 
-| Category | Training examples | Held-out examples | Precision | Recall | F1 |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| BILLING | 24 | 8 | 1.00 | 1.00 | 1.00 |
-| TECHNICAL | 24 | 8 | 1.00 | 1.00 | 1.00 |
-| ACCOUNT | 24 | 8 | 1.00 | 1.00 | 1.00 |
-| GENERAL | 24 | 8 | 1.00 | 1.00 | 1.00 |
+| Category  | Training examples | Held-out examples | Precision | Recall |   F1 |
+| --------- | ----------------: | ----------------: | --------: | -----: | ---: |
+| BILLING   |                24 |                 8 |      1.00 |   1.00 | 1.00 |
+| TECHNICAL |                24 |                 8 |      1.00 |   1.00 | 1.00 |
+| ACCOUNT   |                24 |                 8 |      1.00 |   1.00 | 1.00 |
+| GENERAL   |                24 |                 8 |      1.00 |   1.00 | 1.00 |
 
 Overall accuracy is **32/32 (100%)** and macro F1 is **1.00 on this small curated
 benchmark**. These results are a development smoke check. They do not establish
@@ -65,11 +65,11 @@ an independent real-world evaluation.
 The matrix uses actual classes as rows and predicted classes as columns:
 
 | Actual / predicted | BILLING | TECHNICAL | ACCOUNT | GENERAL |
-| --- | ---: | ---: | ---: | ---: |
-| BILLING | 8 | 0 | 0 | 0 |
-| TECHNICAL | 0 | 8 | 0 | 0 |
-| ACCOUNT | 0 | 0 | 8 | 0 |
-| GENERAL | 0 | 0 | 0 | 8 |
+| ------------------ | ------: | --------: | ------: | ------: |
+| BILLING            |       8 |         0 |       0 |       0 |
+| TECHNICAL          |       0 |         8 |       0 |       0 |
+| ACCOUNT            |       0 |         0 |       8 |       0 |
+| GENERAL            |       0 |         0 |       0 |       8 |
 
 ## Fallback behavior and confidence
 

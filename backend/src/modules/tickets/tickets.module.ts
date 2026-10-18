@@ -11,7 +11,10 @@ import { TypeOrmTicketRepository } from './infrastructure/typeorm-ticket.reposit
 import { TicketsController } from './presentation/tickets.controller';
 
 @Module({
-  imports: [AiModule, TypeOrmModule.forFeature([TicketOrmEntity, CommentOrmEntity, EventOrmEntity, UserOrmEntity])],
+  imports: [
+    AiModule,
+    TypeOrmModule.forFeature([TicketOrmEntity, CommentOrmEntity, EventOrmEntity, UserOrmEntity]),
+  ],
   controllers: [TicketsController],
   providers: [TicketsService, { provide: TicketRepository, useClass: TypeOrmTicketRepository }],
   exports: [TicketsService],

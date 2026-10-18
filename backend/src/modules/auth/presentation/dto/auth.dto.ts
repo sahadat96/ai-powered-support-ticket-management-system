@@ -1,13 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Transform, TransformFnParams } from 'class-transformer';
-import {
-  IsEmail,
-  IsString,
-  Matches,
-  MaxLength,
-  MinLength,
-  ValidateBy,
-} from 'class-validator';
+import { IsEmail, IsString, Matches, MaxLength, MinLength, ValidateBy } from 'class-validator';
 import { UserResponseDto } from '../../../users/presentation/dto/user-response.dto';
 
 function NormalizeEmail() {

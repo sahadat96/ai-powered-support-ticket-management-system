@@ -8,7 +8,15 @@
     "build": "npm --prefix backend run build && npm --prefix frontend run build",
     "test": "npm --prefix backend test && npm --prefix frontend test",
     "db:migrate": "npm --prefix backend run migration:run",
-    "db:seed": "npm --prefix backend run seed"
+    "db:seed": "npm --prefix backend run seed",
+    "format": "prettier --write backend/src backend/test frontend/src frontend/tests frontend/*.ts docs README.md compose.yaml .github/workflows",
+    "format:check": "prettier --check backend/src backend/test frontend/src frontend/tests frontend/*.ts docs README.md compose.yaml .github/workflows",
+    "test:api": "npm --prefix backend run test:e2e"
   },
-  "engines": { "node": ">=22.0.0" }
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "devDependencies": {
+    "prettier": "^3.9.10"
+  }
 }

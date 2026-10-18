@@ -1,14 +1,7 @@
-import {
-  ConflictException,
-  Injectable,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { User, UserRole, toAuthUser } from '../../users/domain/user';
-import {
-  EmailAlreadyExistsError,
-  UserRepository,
-} from '../../users/domain/user.repository';
+import { EmailAlreadyExistsError, UserRepository } from '../../users/domain/user.repository';
 import { AuthSession, PasswordHasher } from '../domain/auth-session';
 
 export interface RegisterInput {
@@ -58,7 +51,10 @@ export class AuthService {
 
   async login(input: LoginInput): Promise<AuthSession> {
     const user = await this.users.findByEmail(input.email.trim().toLowerCase());
-    const validPassword = await this.passwordHasher.verify(input.password, user?.passwordHash ?? DUMMY_PASSWORD_HASH);
+    const validPassword = await this.passwordHasher.verify(
+      input.password,
+      user?.passwordHash ?? DUMMY_PASSWORD_HASH,
+    );
     if (!user || !validPassword) {
       throw new UnauthorizedException('Invalid email or password');
     }

@@ -1,10 +1,7 @@
 import { ConflictException, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { User, UserRole } from '../../users/domain/user';
-import {
-  EmailAlreadyExistsError,
-  UserRepository,
-} from '../../users/domain/user.repository';
+import { EmailAlreadyExistsError, UserRepository } from '../../users/domain/user.repository';
 import { PasswordHasher } from '../domain/auth-session';
 import { AuthService } from './auth.service';
 
@@ -83,11 +80,13 @@ describe('AuthService', () => {
   it('rejects an email that is already registered without creating a new account', async () => {
     users.findByEmail.mockResolvedValue(user);
 
-    await expect(service.register({
-      email: user.email,
-      name: user.name,
-      password: 'my-secure-password',
-    })).rejects.toBeInstanceOf(ConflictException);
+    await expect(
+      service.register({
+        email: user.email,
+        name: user.name,
+        password: 'my-secure-password',
+      }),
+    ).rejects.toBeInstanceOf(ConflictException);
 
     expect(users.create).not.toHaveBeenCalled();
     expect(passwords.hash).not.toHaveBeenCalled();
@@ -98,18 +97,23 @@ describe('AuthService', () => {
     passwords.hash.mockResolvedValue('stored-hash');
     users.create.mockRejectedValue(new EmailAlreadyExistsError());
 
-    await expect(service.register({
-      email: user.email,
-      name: user.name,
-      password: 'my-secure-password',
-    })).rejects.toBeInstanceOf(ConflictException);
+    await expect(
+      service.register({
+        email: user.email,
+        name: user.name,
+        password: 'my-secure-password',
+      }),
+    ).rejects.toBeInstanceOf(ConflictException);
   });
 
   it('allows a valid password and normalizes the login email', async () => {
     users.findByEmail.mockResolvedValue(user);
     passwords.verify.mockResolvedValue(true);
 
-    const session = await service.login({ email: ' ALEX@EXAMPLE.COM ', password: 'correct-password' });
+    const session = await service.login({
+      email: ' ALEX@EXAMPLE.COM ',
+      password: 'correct-password',
+    });
 
     expect(users.findByEmail).toHaveBeenCalledWith('alex@example.com');
     expect(passwords.verify).toHaveBeenCalledWith('correct-password', 'stored-hash');
@@ -121,8 +125,9 @@ describe('AuthService', () => {
     users.findByEmail.mockResolvedValue(exists ? user : null);
     passwords.verify.mockResolvedValue(false);
 
-    await expect(service.login({ email: user.email, password: 'wrong-password' }))
-      .rejects.toThrow(new UnauthorizedException('Invalid email or password'));
+    await expect(service.login({ email: user.email, password: 'wrong-password' })).rejects.toThrow(
+      new UnauthorizedException('Invalid email or password'),
+    );
     expect(sign).not.toHaveBeenCalled();
   });
 });
