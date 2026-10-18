@@ -5,8 +5,16 @@ describe('local ticket triage model', () => {
   const model = new TicketTriageModel(TRAINING_EXAMPLES);
 
   it.each([
-    ['Payment dispute', 'The subscription charged my bank card twice and I need a refund.', 'BILLING'],
-    ['Broken dashboard', 'Every attempt to load the page returns an internal server error.', 'TECHNICAL'],
+    [
+      'Payment dispute',
+      'The subscription charged my bank card twice and I need a refund.',
+      'BILLING',
+    ],
+    [
+      'Broken dashboard',
+      'Every attempt to load the page returns an internal server error.',
+      'TECHNICAL',
+    ],
     ['Password recovery', 'My account reset link expired and I cannot login.', 'ACCOUNT'],
     ['Getting started', 'Where is the onboarding tutorial and product documentation?', 'GENERAL'],
   ])('classifies the held-out example %s', (title, description, expected) => {
@@ -30,26 +38,48 @@ describe('local ticket triage model', () => {
   });
 
   it('prioritizes a widespread outage independently of category inference', () => {
-    const result = model.analyze('Production outage', 'All customers see a server error and the service is down.');
+    const result = model.analyze(
+      'Production outage',
+      'All customers see a server error and the service is down.',
+    );
     expect(result.category).toBe('TECHNICAL');
     expect(result.priority).toBe('URGENT');
     expect(result.explanation[1]).toContain('widespread');
   });
 
   it('requires urgent human review for an account compromise', () => {
-    expect(model.analyze('Account compromised', 'My account has been compromised and the password was changed.').priority).toBe('URGENT');
+    expect(
+      model.analyze(
+        'Account compromised',
+        'My account has been compromised and the password was changed.',
+      ).priority,
+    ).toBe('URGENT');
   });
 
   it('marks blocked login and duplicate charges high priority', () => {
-    expect(model.analyze('Login problem', 'I cannot login to my account after resetting my password.').priority).toBe('HIGH');
-    expect(model.analyze('Duplicate charge', 'My card was charged twice for the subscription.').priority).toBe('HIGH');
+    expect(
+      model.analyze('Login problem', 'I cannot login to my account after resetting my password.')
+        .priority,
+    ).toBe('HIGH');
+    expect(
+      model.analyze('Duplicate charge', 'My card was charged twice for the subscription.').priority,
+    ).toBe('HIGH');
   });
 
   it.each([
     ['Not urgent', 'A feature request for the dashboard. There is no outage for all users.'],
-    ['Feature request', 'The production service is not down. This is a suggestion for a cosmetic change.'],
-    ['General question', 'No security breach or unauthorized activity. I would like documentation.'],
-    ['Scheduled maintenance', 'There is a planned outage for all users, no rush, just a general question.'],
+    [
+      'Feature request',
+      'The production service is not down. This is a suggestion for a cosmetic change.',
+    ],
+    [
+      'General question',
+      'No security breach or unauthorized activity. I would like documentation.',
+    ],
+    [
+      'Scheduled maintenance',
+      'There is a planned outage for all users, no rush, just a general question.',
+    ],
   ])('does not escalate common negated or planned incidents: %s', (title, description) => {
     expect(model.analyze(title, description).priority).toBe('LOW');
   });
@@ -58,13 +88,24 @@ describe('local ticket triage model', () => {
     const before = JSON.stringify(TRAINING_EXAMPLES);
     const frozen = Object.freeze(TRAINING_EXAMPLES.map((example) => Object.freeze({ ...example })));
     const instance = new TicketTriageModel(frozen);
-    const first = instance.analyze('Invoice question', 'Please explain my subscription payment and invoice total.');
-    expect(instance.analyze('Invoice question', 'Please explain my subscription payment and invoice total.')).toEqual(first);
+    const first = instance.analyze(
+      'Invoice question',
+      'Please explain my subscription payment and invoice total.',
+    );
+    expect(
+      instance.analyze(
+        'Invoice question',
+        'Please explain my subscription payment and invoice total.',
+      ),
+    ).toEqual(first);
     expect(JSON.stringify(TRAINING_EXAMPLES)).toBe(before);
   });
 
   it('extracts the summary and provides clearly local output metadata', () => {
-    const result = model.analyze('Payment question', 'My invoice contains an extra fee. A later sentence is not in the summary.');
+    const result = model.analyze(
+      'Payment question',
+      'My invoice contains an extra fee. A later sentence is not in the summary.',
+    );
     expect(result.summary).toBe('Payment question — My invoice contains an extra fee.');
     expect(result.provider).toBe('local-naive-bayes');
     expect(result.modelVersion).toBe(MODEL_VERSION);
@@ -73,7 +114,10 @@ describe('local ticket triage model', () => {
   });
 
   it('bounds long summaries and strips HTML markup', () => {
-    const result = model.analyze('<b>Dashboard issue</b>', 'The dashboard error repeats. '.repeat(1_000));
+    const result = model.analyze(
+      '<b>Dashboard issue</b>',
+      'The dashboard error repeats. '.repeat(1_000),
+    );
     expect(result.summary).not.toContain('<b>');
     expect(result.summary.length).toBeLessThanOrEqual(240);
     const longTitle = model.analyze('Long title '.repeat(100), 'Some details.');

@@ -1,5 +1,11 @@
 import {
-  Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn, UpdateDateColumn,
+  Column,
+  CreateDateColumn,
+  Entity,
+  JoinColumn,
+  ManyToOne,
+  PrimaryGeneratedColumn,
+  UpdateDateColumn,
 } from 'typeorm';
 import type { TriageResult } from '../../ai/domain/triage';
 import { UserOrmEntity } from '../../users/infrastructure/user.orm-entity';

@@ -12,12 +12,12 @@ control, ticket state, and persistence.
 Each business module owns its HTTP adapter, use cases, domain contracts, and
 persistence adapters. Nest modules compose concrete dependencies through providers.
 
-| Layer | Responsibilities | Examples |
-| --- | --- | --- |
-| Presentation | REST controllers, request validation, OpenAPI metadata, authentication and role guards | `auth/presentation`, `tickets/presentation`, `users/presentation` |
-| Application | Coordinate use cases, enforce user access, call domain rules and repository ports | `AuthService`, `TicketsService`, `UsersService`, `TriageService` |
-| Domain | Framework-independent types, workflow rules, repository and password hashing contracts, local classification | `TicketRepository`, `UserRepository`, `PasswordHasher`, `workflow.ts`, `TicketTriageModel` |
-| Infrastructure | Implement PostgreSQL repositories with TypeORM, bcrypt hashing, curated model training data | `TypeOrmTicketRepository`, `TypeOrmUserRepository`, `BcryptPasswordHasher` |
+| Layer          | Responsibilities                                                                                             | Examples                                                                                   |
+| -------------- | ------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------ |
+| Presentation   | REST controllers, request validation, OpenAPI metadata, authentication and role guards                       | `auth/presentation`, `tickets/presentation`, `users/presentation`                          |
+| Application    | Coordinate use cases, enforce user access, call domain rules and repository ports                            | `AuthService`, `TicketsService`, `UsersService`, `TriageService`                           |
+| Domain         | Framework-independent types, workflow rules, repository and password hashing contracts, local classification | `TicketRepository`, `UserRepository`, `PasswordHasher`, `workflow.ts`, `TicketTriageModel` |
+| Infrastructure | Implement PostgreSQL repositories with TypeORM, bcrypt hashing, curated model training data                  | `TypeOrmTicketRepository`, `TypeOrmUserRepository`, `BcryptPasswordHasher`                 |
 
 Application input interfaces are independent of controller DTOs. Controllers
 validate HTTP input and pass structurally compatible values to the application
@@ -89,15 +89,15 @@ cookies are required in production. Helmet, strict DTO validation, global rate
 limits, tighter authentication limits, and sanitized server error responses are
 configured centrally.
 
-| Action | Customer | Agent | Administrator |
-| --- | --- | --- | --- |
-| List, search, dashboard counts | Own tickets | All tickets | All tickets |
-| Read a ticket and public replies | Own tickets | All tickets | All tickets |
-| Read or write internal notes | No | Yes | Yes |
-| Create tickets and public replies | Yes | Yes | Yes |
-| Edit title and description | Own open tickets | Any visible ticket | Any visible ticket |
-| Assign, reprioritize, recategorize, rerun triage | No | Yes | Yes |
-| Delete a ticket | Own open tickets | No | Any ticket |
+| Action                                           | Customer         | Agent              | Administrator      |
+| ------------------------------------------------ | ---------------- | ------------------ | ------------------ |
+| List, search, dashboard counts                   | Own tickets      | All tickets        | All tickets        |
+| Read a ticket and public replies                 | Own tickets      | All tickets        | All tickets        |
+| Read or write internal notes                     | No               | Yes                | Yes                |
+| Create tickets and public replies                | Yes              | Yes                | Yes                |
+| Edit title and description                       | Own open tickets | Any visible ticket | Any visible ticket |
+| Assign, reprioritize, recategorize, rerun triage | No               | Yes                | Yes                |
+| Delete a ticket                                  | Own open tickets | No                 | Any ticket         |
 
 Tickets belonging to another customer return 404, limiting information about
 their existence. Customer list filters and aggregate queries receive a

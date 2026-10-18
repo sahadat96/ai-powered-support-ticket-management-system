@@ -47,8 +47,9 @@ describe('JwtAuthGuard', () => {
   });
 
   it('rejects a missing session', async () => {
-    await expect(guard.canActivate(context({ headers: {} })))
-      .rejects.toBeInstanceOf(UnauthorizedException);
+    await expect(guard.canActivate(context({ headers: {} }))).rejects.toBeInstanceOf(
+      UnauthorizedException,
+    );
   });
 
   it.each([
@@ -65,23 +66,29 @@ describe('JwtAuthGuard', () => {
   it('rejects expired or incorrectly signed tokens', async () => {
     verify.mockRejectedValue(new Error('expired'));
 
-    await expect(guard.canActivate(context({ headers: { authorization: 'Bearer expired' } })))
-      .rejects.toBeInstanceOf(UnauthorizedException);
+    await expect(
+      guard.canActivate(context({ headers: { authorization: 'Bearer expired' } })),
+    ).rejects.toBeInstanceOf(UnauthorizedException);
     expect(findById).not.toHaveBeenCalled();
   });
 
   it('rejects sessions whose account has been deleted', async () => {
     findById.mockResolvedValue(null);
 
-    await expect(guard.canActivate(context({ headers: { authorization: 'Bearer token' } })))
-      .rejects.toBeInstanceOf(UnauthorizedException);
+    await expect(
+      guard.canActivate(context({ headers: { authorization: 'Bearer token' } })),
+    ).rejects.toBeInstanceOf(UnauthorizedException);
   });
 
-  it.each([null, {}, { sub: 'not-a-uuid' }])('rejects malformed JWT claims without querying PostgreSQL', async (payload) => {
-    verify.mockResolvedValue(payload);
+  it.each([null, {}, { sub: 'not-a-uuid' }])(
+    'rejects malformed JWT claims without querying PostgreSQL',
+    async (payload) => {
+      verify.mockResolvedValue(payload);
 
-    await expect(guard.canActivate(context({ headers: { authorization: 'Bearer malformed' } })))
-      .rejects.toBeInstanceOf(UnauthorizedException);
-    expect(findById).not.toHaveBeenCalled();
-  });
+      await expect(
+        guard.canActivate(context({ headers: { authorization: 'Bearer malformed' } })),
+      ).rejects.toBeInstanceOf(UnauthorizedException);
+      expect(findById).not.toHaveBeenCalled();
+    },
+  );
 });

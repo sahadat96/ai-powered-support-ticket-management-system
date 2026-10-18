@@ -33,20 +33,20 @@ jobs:
       FRONTEND_URL: http://localhost:3000
       API_ORIGIN: http://localhost:4000
       API_URL: http://localhost:4000
-      PORT: "4000"
-      SEED_DEMO: "true"
+      PORT: '4000'
+      SEED_DEMO: 'true'
       DEMO_PASSWORD: SupportDemo!2026
       E2E_DEMO_PASSWORD: SupportDemo!2026
-      NEXT_PUBLIC_SHOW_DEMO: "false"
-      NEXT_TELEMETRY_DISABLED: "1"
+      NEXT_PUBLIC_SHOW_DEMO: 'false'
+      NEXT_TELEMETRY_DISABLED: '1'
       PLAYWRIGHT_OUTPUT_DIR: test-results
       PLAYWRIGHT_REPORT_DIR: playwright-report
-      CI: "true"
+      CI: 'true'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: "24"
+          node-version: '24'
           cache: npm
           cache-dependency-path: |
             package-lock.json
