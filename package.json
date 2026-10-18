@@ -2,8 +2,12 @@
   "name": "ai-powered-support-ticket-management",
   "version": "1.0.0",
   "private": true,
-  "workspaces": ["apps/*"],
-  "engines": { "node": ">=22.14" },
+  "workspaces": [
+    "apps/*"
+  ],
+  "engines": {
+    "node": ">=22.14"
+  },
   "scripts": {
     "dev": "concurrently -k -n api,web -c cyan,magenta \"npm run dev -w apps/api\" \"npm run dev -w apps/web\"",
     "dev:api": "npm run dev -w apps/api",
@@ -17,8 +21,12 @@
     "db:migrate": "npm run db:migrate -w apps/api",
     "db:seed": "npm run db:seed -w apps/api",
     "ai:evaluate": "npm run ai:evaluate -w apps/api",
-    "format": "prettier --write apps docs *.json *.md *.yml",
-    "format:check": "prettier --check apps docs *.json *.md *.yml"
+    "format": "prettier --write apps docs tests .github playwright.config.ts *.json *.md *.yml",
+    "format:check": "prettier --check apps docs tests .github playwright.config.ts *.json *.md *.yml"
+  },
+  "overrides": {
+    "deepmerge-ts": "8.0.2",
+    "js-yaml": "4.3.2"
   },
   "devDependencies": {
     "@playwright/test": "^1.56.1",

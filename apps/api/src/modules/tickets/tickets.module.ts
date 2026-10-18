@@ -5,5 +5,13 @@ import { PrismaTicketRepository } from './infrastructure/prisma-ticket.repositor
 import { TicketsService } from './application/tickets.service';
 import { TicketsController } from './presentation/tickets.controller';
 
-@Module({imports: [UsersModule], providers: [TicketsService, {provide: TicketRepository, useClass: PrismaTicketRepository}], controllers: [TicketsController], exports: [TicketsService, TicketRepository]})
+@Module({
+  imports: [UsersModule],
+  providers: [
+    TicketsService,
+    { provide: TicketRepository, useClass: PrismaTicketRepository },
+  ],
+  controllers: [TicketsController],
+  exports: [TicketsService, TicketRepository],
+})
 export class TicketsModule {}

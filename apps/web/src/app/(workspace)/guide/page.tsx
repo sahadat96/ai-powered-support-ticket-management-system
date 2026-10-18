@@ -1,3 +1,95 @@
 import { ArrowRight } from 'lucide-react';
 import { Badge } from '@/components/ui';
-export default function GuidePage() {return <><div className="page-heading"><div><span className="heading-kicker">A LITTLE HELP GOES A LONG WAY</span><h1>Make yourself at home.</h1><p>Your guide to a calmer, clearer support workflow.</p></div></div><div className="guide-content"><section className="panel"><h2>From a question to a resolution</h2><p>Create a ticket with a clear subject and enough detail to reproduce the issue. A support agent can pick it up, ask follow-up questions, and resolve it when the work is done.</p><div className="workflow-steps"><Badge value="OPEN"/><ArrowRight size={12}/><Badge value="IN_PROGRESS"/><ArrowRight size={12}/><Badge value="RESOLVED"/><ArrowRight size={12}/><Badge value="CLOSED"/></div><p>Agents can move a ticket to “Waiting on customer” when they need more information. Customers can close or reopen their resolved tickets. Staff can reopen closed tickets.</p><h3>The right access for every person</h3><ul><li>Customers see only their own tickets, can edit their open requests, and join the conversation.</li><li>Agents see the shared queue, claim unassigned tickets, manage status and triage, and reply.</li><li>Admins can also reassign and permanently delete tickets.</li></ul></section><section className="panel" id="ai"><h2>Your assistant, with clear boundaries</h2><p>Relay uses a small local Naive Bayes text classifier to suggest one of four categories. Priority uses transparent impact rules. The model runs on the server without sending ticket content to an external AI service.</p><h3>What goes in. What comes out.</h3><p>The subject and description are the inputs. The output includes a category, priority, model score, a short extract of the issue, and a template reply. Staff review the suggestions before applying them. Draft replies are added to the composer for editing and are never sent automatically.</p><h3>Where it needs your judgment</h3><p>The classifier was trained on 32 authored English examples. Its score is not a calibrated probability. It can misunderstand ambiguous language, mixed topics, spelling mistakes, negation, and languages other than English. Priority is inferred from wording rather than verified business impact. Its summary is an extract, and its reply is a template rather than generated reasoning.</p><h3>How it was evaluated</h3><p>The repository includes 16 separate synthetic category examples and tests for unknown vocabulary, urgency, and a basic negation case. Run <code>npm run ai:evaluate</code> for the current category results. These examples demonstrate basic behavior and do not establish real-world accuracy.</p></section><section className="panel"><h2>Working together without losing changes</h2><p>Every ticket has a version number. If someone changes the ticket while you are editing, Relay asks you to refresh rather than overwriting their work. Comments and workflow changes appear in the ticket activity history. Editing a ticket’s content marks its old AI analysis as stale.</p></section></div></>;}
+export default function GuidePage() {
+  return (
+    <>
+      <div className="page-heading">
+        <div>
+          <span className="heading-kicker">A LITTLE HELP GOES A LONG WAY</span>
+          <h1>Make yourself at home.</h1>
+          <p>Your guide to a calmer, clearer support workflow.</p>
+        </div>
+      </div>
+      <div className="guide-content">
+        <section className="panel">
+          <h2>From a question to a resolution</h2>
+          <p>
+            Create a ticket with a clear subject and enough detail to reproduce
+            the issue. A support agent can pick it up, ask follow-up questions,
+            and resolve it when the work is done.
+          </p>
+          <div className="workflow-steps">
+            <Badge value="OPEN" />
+            <ArrowRight size={12} />
+            <Badge value="IN_PROGRESS" />
+            <ArrowRight size={12} />
+            <Badge value="RESOLVED" />
+            <ArrowRight size={12} />
+            <Badge value="CLOSED" />
+          </div>
+          <p>
+            Agents can move a ticket to “Waiting on customer” when they need
+            more information. Customers can close or reopen their resolved
+            tickets. Staff can reopen closed tickets.
+          </p>
+          <h3>The right access for every person</h3>
+          <ul>
+            <li>
+              Customers see only their own tickets, can edit their open
+              requests, and join the conversation.
+            </li>
+            <li>
+              Agents see the shared queue, claim unassigned tickets, manage
+              status and triage, and reply.
+            </li>
+            <li>Admins can also reassign and permanently delete tickets.</li>
+          </ul>
+        </section>
+        <section className="panel" id="ai">
+          <h2>Your assistant, with clear boundaries</h2>
+          <p>
+            Relay uses a small local Naive Bayes text classifier to suggest one
+            of four categories. Priority uses transparent impact rules. The
+            model runs on the server without sending ticket content to an
+            external AI service.
+          </p>
+          <h3>What goes in. What comes out.</h3>
+          <p>
+            The subject and description are the inputs. The output includes a
+            category, priority, model score, a short extract of the issue, and a
+            template reply. Staff review the suggestions before applying them.
+            Draft replies are added to the composer for editing and are never
+            sent automatically.
+          </p>
+          <h3>Where it needs your judgment</h3>
+          <p>
+            The classifier was trained on 32 authored English examples. Its
+            score is not a calibrated probability. It can misunderstand
+            ambiguous language, mixed topics, spelling mistakes, negation, and
+            languages other than English. Priority is inferred from wording
+            rather than verified business impact. Its summary is an extract, and
+            its reply is a template rather than generated reasoning.
+          </p>
+          <h3>How it was evaluated</h3>
+          <p>
+            The repository includes 16 separate synthetic category examples and
+            tests for unknown vocabulary, urgency, and a basic negation case.
+            Run <code>npm run ai:evaluate</code> for the current category
+            results. These examples demonstrate basic behavior and do not
+            establish real-world accuracy.
+          </p>
+        </section>
+        <section className="panel">
+          <h2>Working together without losing changes</h2>
+          <p>
+            Every ticket has a version number. If someone changes the ticket
+            while you are editing, Relay asks you to refresh rather than
+            overwriting their work. Comments and workflow changes appear in the
+            ticket activity history. Editing a ticket’s content marks its old AI
+            analysis as stale.
+          </p>
+        </section>
+      </div>
+    </>
+  );
+}

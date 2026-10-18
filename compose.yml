@@ -11,7 +11,8 @@ services:
     volumes:
       - ticket_postgres:/var/lib/postgresql/data
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U postgres -d ai-powered-ticket-management']
+      test:
+        ['CMD-SHELL', 'pg_isready -U postgres -d ai-powered-ticket-management']
       interval: 5s
       timeout: 5s
       retries: 10
