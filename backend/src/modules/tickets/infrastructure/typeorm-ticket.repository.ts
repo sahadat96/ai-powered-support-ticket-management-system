@@ -92,9 +92,9 @@ export class TypeOrmTicketRepository extends TicketRepository {
     }
     if (query.sort === 'priority') {
       builder.addSelect("CASE ticket.priority WHEN 'URGENT' THEN 0 WHEN 'HIGH' THEN 1 WHEN 'MEDIUM' THEN 2 ELSE 3 END", 'priority_order')
-        .orderBy('priority_order', 'ASC').addOrderBy('ticket.created_at', 'DESC');
+        .orderBy('priority_order', 'ASC').addOrderBy('ticket.createdAt', 'DESC');
     } else {
-      builder.orderBy('ticket.created_at', query.sort === 'oldest' ? 'ASC' : 'DESC');
+      builder.orderBy('ticket.createdAt', query.sort === 'oldest' ? 'ASC' : 'DESC');
     }
     builder.addOrderBy('ticket.id', 'ASC');
     const [records, total] = await builder.skip((query.page - 1) * query.limit).take(query.limit).getManyAndCount();
@@ -134,7 +134,7 @@ export class TypeOrmTicketRepository extends TicketRepository {
     const builder = this.dataSource.getRepository(CommentOrmEntity).createQueryBuilder('comment')
       .leftJoinAndSelect('comment.author', 'author')
       .where('comment.ticket_id = :ticketId', { ticketId })
-      .orderBy('comment.created_at', 'ASC').addOrderBy('comment.id', 'ASC');
+      .orderBy('comment.createdAt', 'ASC').addOrderBy('comment.id', 'ASC');
     if (!includeInternal) builder.andWhere('comment.internal = false');
     return (await builder.getMany()).map(toComment);
   }
