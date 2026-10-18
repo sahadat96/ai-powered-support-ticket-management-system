@@ -12,6 +12,7 @@ export const AppDataSource = new DataSource({
   entities: [join(__dirname, '../modules/**/*.orm-entity.{ts,js}')],
   migrations: [join(__dirname, 'migrations/*.{ts,js}')],
   migrationsTableName: 'support_migrations',
+  installExtensions: false,
   synchronize: false,
   logging: false,
 });
