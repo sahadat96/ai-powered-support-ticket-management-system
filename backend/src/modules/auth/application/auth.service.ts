@@ -22,6 +22,9 @@ export interface LoginInput {
   password: string;
 }
 
+// Unknown users still pay the bcrypt verification cost. This is never a login credential.
+const DUMMY_PASSWORD_HASH = '$2b$12$ySulkDlcSPsc3BfbDuL55.2yNRNC5gyc0v3w695u/bPybZC8UZCBC';
+
 @Injectable()
 export class AuthService {
   constructor(
@@ -55,7 +58,8 @@ export class AuthService {
 
   async login(input: LoginInput): Promise<AuthSession> {
     const user = await this.users.findByEmail(input.email.trim().toLowerCase());
-    if (!user || !(await this.passwordHasher.verify(input.password, user.passwordHash))) {
+    const validPassword = await this.passwordHasher.verify(input.password, user?.passwordHash ?? DUMMY_PASSWORD_HASH);
+    if (!user || !validPassword) {
       throw new UnauthorizedException('Invalid email or password');
     }
     return this.createSession(user);
