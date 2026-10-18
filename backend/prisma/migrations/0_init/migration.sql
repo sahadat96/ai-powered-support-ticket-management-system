@@ -1,12 +1,5 @@
-import { MigrationInterface, QueryRunner } from 'typeorm';
-
-/** Isolated schema leaves any pre-existing public-schema application tables untouched. */
-export class InitialSupportSchema1792281600000 implements MigrationInterface {
-  name = 'InitialSupportSchema1792281600000';
-
-  async up(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(`
-      CREATE SCHEMA IF NOT EXISTS support;
+-- Baseline of the existing support schema. Retains all checks, partial indexes, and data types.
+CREATE SCHEMA IF NOT EXISTS support;
       CREATE TABLE support.users (
         id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
         email varchar(254) NOT NULL UNIQUE,
@@ -58,11 +51,3 @@ export class InitialSupportSchema1792281600000 implements MigrationInterface {
       CREATE INDEX tickets_status_idx ON support.tickets (status, priority) WHERE deleted_at IS NULL;
       CREATE INDEX comments_ticket_idx ON support.comments (ticket_id, created_at, id);
       CREATE INDEX ticket_events_ticket_idx ON support.ticket_events (ticket_id, created_at, id);
-    `);
-  }
-
-  async down(queryRunner: QueryRunner): Promise<void> {
-    // Explicit migration rollback is destructive; normal application startup never invokes this.
-    await queryRunner.query('DROP SCHEMA support CASCADE');
-  }
-}

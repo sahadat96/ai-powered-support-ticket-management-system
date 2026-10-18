@@ -1,6 +1,6 @@
 # Architecture
 
-The API is a NestJS modular monolith backed by PostgreSQL. Its independent
+The API is a NestJS modular monolith backed by PostgreSQL through Prisma 7. Its independent
 `backend/` project exposes REST endpoints under `/api/v1` and interactive OpenAPI
 documentation at `/docs`. The frontend boundary is a separate Next.js App Router
 project, with browser requests passing through a server proxy that forwards the
@@ -17,13 +17,14 @@ persistence adapters. Nest modules compose concrete dependencies through provide
 | Presentation   | REST controllers, request validation, OpenAPI metadata, authentication and role guards                       | `auth/presentation`, `tickets/presentation`, `users/presentation`                          |
 | Application    | Coordinate use cases, enforce user access, call domain rules and repository ports                            | `AuthService`, `TicketsService`, `UsersService`, `TriageService`                           |
 | Domain         | Framework-independent types, workflow rules, repository and password hashing contracts, local classification | `TicketRepository`, `UserRepository`, `PasswordHasher`, `workflow.ts`, `TicketTriageModel` |
-| Infrastructure | Implement PostgreSQL repositories with TypeORM, bcrypt hashing, curated model training data                  | `TypeOrmTicketRepository`, `TypeOrmUserRepository`, `BcryptPasswordHasher`                 |
+| Infrastructure | Implement PostgreSQL repositories with Prisma, bcrypt hashing, curated model training data                   | `PrismaTicketRepository`, `PrismaUserRepository`, `BcryptPasswordHasher`                   |
 
 Application input interfaces are independent of controller DTOs. Controllers
 validate HTTP input and pass structurally compatible values to the application
 services. Domain repository ports are abstract classes, allowing Nest dependency
-injection without coupling use cases to TypeORM entities. Infrastructure maps
-entities to explicit public domain records rather than returning database rows.
+injection without coupling use cases to Prisma models. A shared global Prisma
+module owns the generated client and PostgreSQL driver adapter. Infrastructure maps
+database records to explicit public domain records rather than returning database rows.
 Application services use Nest exceptions for HTTP-oriented use case failures;
 domain workflow and classification code remain usable without Nest.
 
@@ -35,7 +36,7 @@ flowchart LR
   HTTP --> App[Application services]
   App --> Rules[Domain types and workflow rules]
   App --> Ports[Repository ports]
-  Ports --> ORM[TypeORM repository adapters]
+  Ports --> ORM[Prisma repository adapters]
   ORM --> DB[(PostgreSQL support schema)]
   App --> AI[TriageService]
   AI --> Model[Local naive Bayes model]
@@ -52,19 +53,41 @@ business tables live in the dedicated `support` schema:
 - `comments`: public replies and staff-only internal notes.
 - `ticket_events`: actor, action, description, and timestamp for audit history.
 
-The migration bookkeeping table is `support_migrations`. Explicit migrations
-create the application's schema and tables. TypeORM has `synchronize: false` and
-`installExtensions: false`; starting the API does not synchronize or drop tables,
-or install PostgreSQL extensions. Existing application tables in `public` remain
-outside this project's schema. The migration relies on PostgreSQL's available
-`gen_random_uuid()` function. Reverting the initial migration explicitly removes
-the `support` schema, so rollback is a deliberate destructive operation.
+Prisma's schema and checked-in SQL migrations live in `backend/prisma`. Prisma
+configuration and the shared runtime client select `support` as the connection
+schema, so Prisma records migrations in `support._prisma_migrations`. Existing
+tables and `_prisma_migrations` in `public` belong to the earlier application and
+remain untouched. Starting the API connects to the database without applying
+migrations, creating tables, or installing extensions.
+
+`npm run db:migrate` invokes `backend/scripts/migrate.cjs`. For an empty support
+schema, it deploys the SQL baseline using `prisma migrate deploy`. For the existing
+TypeORM installation, it verifies the legacy migration record and support schema
+before marking the equivalent Prisma baseline as applied, then deploys pending
+migrations. Adoption records migration history without recreating tables or
+rewriting existing data. The old `support_migrations` bookkeeping remains in
+place. An incomplete or incompatible schema must be reviewed before adoption;
+the wrapper stops when validation fails.
+
+The baseline retains the original database UUID defaults, identity ticket
+numbers, timestamp types, CHECK constraints, foreign keys, and partial indexes.
+Role, status, category, and priority remain checked `varchar` columns. These
+database constraints are preserved in migration SQL even where the Prisma schema
+cannot express them. The migration relies on PostgreSQL's available
+`gen_random_uuid()` function.
+
+For future schema changes, create a migration against a separate disposable
+development database using `prisma migrate dev`, review its SQL for preserved
+constraints and indexes, and commit the migration. Deploy reviewed migrations
+through `db:migrate`. Existing application databases use explicit migrations;
+`db push` and database reset commands are not part of this workflow.
 
 Database constraints enforce valid roles, statuses, categories, priorities,
 positive versions, nonempty data, foreign keys, and an assignee for active or
 resolved work. Indexes cover recent tickets, requester and assignee queues, status,
-and per-ticket conversations. Parameterized query builders handle search and
-filters, and search escapes SQL wildcard characters.
+and per-ticket conversations. Prisma queries and parameterized SQL handle search,
+filters, and aggregates. Search escapes SQL wildcard characters; custom priority
+ordering and ticket-number substring search retain their PostgreSQL behavior.
 
 ## Authentication and role visibility
 
@@ -132,7 +155,7 @@ archival, retaining the conversation and event history.
 Ticket edits, status changes, deletion, and staff triage requests carry the
 current `version`. The service checks that version, and the repository makes an
 atomic update using both ticket ID and expected version in the SQL predicate.
-The same transaction increments the version and inserts its audit event. If
+The same Prisma transaction increments the version and inserts its audit event. If
 another request has already saved or archived the ticket, zero rows match and the
 API returns 409. The client should fetch the current ticket, preserve its draft,
 and let the user reapply the intended change. A pre-read version check alone is

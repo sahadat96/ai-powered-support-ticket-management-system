@@ -1,15 +1,14 @@
 import { Module } from '@nestjs/common';
-import { TypeOrmModule } from '@nestjs/typeorm';
+import { PrismaModule } from '../../database/prisma.module';
 import { UsersService } from './application/users.service';
 import { UserRepository } from './domain/user.repository';
-import { TypeOrmUserRepository } from './infrastructure/typeorm-user.repository';
-import { UserOrmEntity } from './infrastructure/user.orm-entity';
+import { PrismaUserRepository } from './infrastructure/prisma-user.repository';
 import { UsersController } from './presentation/users.controller';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([UserOrmEntity])],
+  imports: [PrismaModule],
   controllers: [UsersController],
-  providers: [UsersService, { provide: UserRepository, useClass: TypeOrmUserRepository }],
+  providers: [UsersService, { provide: UserRepository, useClass: PrismaUserRepository }],
   exports: [UserRepository, UsersService],
 })
 export class UsersModule {}

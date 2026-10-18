@@ -38,8 +38,7 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    command:
-      ['node', 'node_modules/typeorm/cli.js', 'migration:run', '-d', 'dist/database/data-source.js']
+    command: ['node', 'scripts/migrate.cjs']
     restart: 'no'
 
   api:

@@ -56,6 +56,9 @@ jobs:
         run: |
           npm ci
           npm run setup
+      - name: Validate Prisma schema
+        working-directory: backend
+        run: npx prisma validate
       - name: Create isolated test database
         run: psql "$DATABASE_URL" -c 'CREATE DATABASE "support_ci-test"'
       - name: Migrate both databases and seed the demo

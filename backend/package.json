@@ -10,10 +10,16 @@
     "test": "jest --runInBand",
     "test:cov": "jest --runInBand --coverage",
     "test:e2e": "jest --config test/jest-e2e.json --runInBand",
-    "migration:run": "typeorm-ts-node-commonjs migration:run -d src/database/data-source.ts",
-    "migration:revert": "typeorm-ts-node-commonjs migration:revert -d src/database/data-source.ts",
+    "migration:run": "node scripts/migrate.cjs",
     "seed": "ts-node src/database/seed.ts",
-    "ai:evaluate": "ts-node src/modules/ai/evaluate.ts"
+    "ai:evaluate": "ts-node src/modules/ai/evaluate.ts",
+    "postinstall": "prisma generate",
+    "prebuild": "prisma generate",
+    "prisma:generate": "prisma generate",
+    "prisma:validate": "prisma validate",
+    "migration:status": "prisma migrate status",
+    "migration:dev": "prisma migrate dev",
+    "prisma:format": "prisma format"
   },
   "dependencies": {
     "@nestjs/common": "^11.1.0",
@@ -23,7 +29,6 @@
     "@nestjs/platform-express": "^11.1.0",
     "@nestjs/swagger": "^11.0.0",
     "@nestjs/throttler": "^6.4.0",
-    "@nestjs/typeorm": "^11.0.0",
     "bcryptjs": "^3.0.2",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.2",
@@ -33,7 +38,9 @@
     "pg": "^8.16.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2",
-    "typeorm": "^0.3.28"
+    "@prisma/client": "^7.0.0",
+    "@prisma/adapter-pg": "^7.0.0",
+    "prisma": "^7.0.0"
   },
   "devDependencies": {
     "@nestjs/cli": "^11.0.0",
@@ -50,12 +57,33 @@
     "typescript": "^5.9.0"
   },
   "jest": {
-    "moduleFileExtensions": ["js", "json", "ts"],
+    "moduleFileExtensions": [
+      "js",
+      "json",
+      "ts"
+    ],
     "rootDir": "src",
     "testRegex": ".*\\.spec\\.ts$",
-    "transform": {"^.+\\.ts$": ["ts-jest", {"tsconfig": "tsconfig.json"}]},
-    "collectCoverageFrom": ["**/*.ts", "!**/*.module.ts", "!**/main.ts", "!**/database/**", "!**/evaluate.ts"],
+    "transform": {
+      "^.+\\.ts$": [
+        "ts-jest",
+        {
+          "tsconfig": "tsconfig.json"
+        }
+      ]
+    },
+    "collectCoverageFrom": [
+      "**/*.ts",
+      "!**/*.module.ts",
+      "!**/main.ts",
+      "!**/database/**",
+      "!**/evaluate.ts",
+      "!**/generated/**"
+    ],
     "coverageDirectory": "../coverage",
     "testEnvironment": "node"
+  },
+  "engines": {
+    "node": "^22.12.0 || >=24.0.0"
   }
 }
