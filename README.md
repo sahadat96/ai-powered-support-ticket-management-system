@@ -56,9 +56,9 @@ The opt-in seed creates these accounts, ten example tickets, conversation replie
 
 | Email                    | Role          | Password                        |
 | ------------------------ | ------------- | ------------------------------- |
-| `admin@support.local`    | Administrator | Your configured `DEMO_PASSWORD` |
-| `agent@support.local`    | Agent         | Your configured `DEMO_PASSWORD` |
-| `customer@support.local` | Customer      | Your configured `DEMO_PASSWORD` |
+| `admin@support.local`    | Administrator | SupportDemo!2026                |
+| `agent@support.local`    | Agent         | SupportDemo!2026                |
+| `customer@support.local` | Customer      | SupportDemo!2026               |
 
 For a disposable local demo, `DEMO_PASSWORD=SupportDemo!2026` is a usable example. Seeding requires `SEED_DEMO=true` and is disabled when `NODE_ENV=production`. Running it again preserves existing accounts, passwords, and tickets; changing the environment value does not reset an existing account password.
 
