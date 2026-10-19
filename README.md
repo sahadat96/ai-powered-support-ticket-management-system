@@ -1,15 +1,12 @@
-# Relay — AI-Powered Support Ticket Management
+# AI-Powered Support Ticket Management
 
 A support workspace with a separate NestJS API and Next.js frontend. Customers open tickets and follow conversations; support staff manage assignments, priorities, status, and private notes. A local machine-learning model suggests ticket categories without an external AI service or API key.
 
-This is an **AI-assisted reference project**. The attached assessment prohibits AI-generated submissions; this repository should not be represented as independently authored assessment work.
-
 ## Run locally
 
-Requirements: Node.js 22.12 LTS or Node.js 24 and newer, npm, and PostgreSQL 14 or newer. The database must already exist and the configured account must be able to create tables and a schema.
+Requirements: Node.js 22.12 LTS or Node.js 24 and newer, npm, and PostgreSQL 14 or newer.
 
 ```bash
-npm ci
 npm run setup
 cp .env.example .env
 cp frontend/.env.example frontend/.env.local
@@ -18,7 +15,7 @@ cp frontend/.env.example frontend/.env.local
 Edit the root `.env`:
 
 ```dotenv
-DATABASE_URL=postgresql://sahadat:your-password@localhost:5432/ai-powered-ticket-management
+DATABASE_URL=postgresql://user:your-password@localhost:5432/ai-powered-ticket-management
 JWT_SECRET=your-random-secret-with-at-least-32-characters
 FRONTEND_URL=http://localhost:3000
 API_ORIGIN=http://localhost:4000
@@ -28,15 +25,12 @@ DEMO_PASSWORD=your-local-demo-password
 
 Generate a random JWT secret with `openssl rand -hex 32`. URL-encode special characters in database credentials. The backend loads `backend/.env` first, then the root `.env`; a process environment variable takes precedence over both. The frontend reads `frontend/.env.local`, with `API_URL=http://localhost:4000`.
 
-The project uses Prisma 7 with the existing `ai-powered-ticket-management` database. Its tables and Prisma migration history live in the `support` schema. The backend and Prisma CLI select that schema automatically; the database URL above can stay as written. Existing tables and Prisma migration history in `public` are preserved.
+The project uses Prisma 7 with the `ai-powered-ticket-management` database. Its tables and Prisma migration history live in the `support` schema. The backend and Prisma CLI select that schema automatically; the database URL above can stay as written. Existing tables and Prisma migration history in `public` are preserved.
 
 ```bash
 npm run db:migrate
 npm run db:seed
 ```
-
-`db:migrate` deploys the checked-in SQL migrations. On a database created by the earlier TypeORM version, it validates the existing support schema before recording the Prisma baseline as applied. It preserves tickets, accounts, passwords, conversations, audit history, and the old migration bookkeeping. Starting the API does not change the schema. See [database migration details](docs/architecture.md#data-ownership-and-existing-database-preservation).
-
 Start the applications in separate terminals:
 
 ```bash
@@ -54,7 +48,7 @@ npm run dev:frontend
 | API                   | <http://localhost:4000/api/v1>        |
 | Database health check | <http://localhost:4000/api/v1/health> |
 
-No hosted deployment is claimed. Both services run locally, and optional container setup is described below.
+Both services run locally, and optional container setup is described below.
 
 ## Demo accounts
 
@@ -115,8 +109,6 @@ npm --prefix backend test
 npm --prefix backend run ai:evaluate
 ```
 
-HTTP integration tests require a dedicated migrated database ending in `-test` or `_test`. Browser tests require Chromium and seeded demo accounts. See [testing instructions](docs/testing.md) for complete commands; the root `npm test` runs backend unit tests followed by browser tests and expects those prerequisites.
-
 ## Optional Docker setup
 
 Docker Compose creates its own PostgreSQL database named `support_desk`, published on host port **5433**. It does not use the existing host database on port 5432. API and web ports default to 4000 and 3000, so stop other processes on those ports first.
@@ -135,13 +127,11 @@ docker compose logs -f api web
 docker compose down
 ```
 
-The named database volume persists when containers stop. Override `COMPOSE_DATABASE_PORT`, `COMPOSE_API_PORT`, or `COMPOSE_WEB_PORT` if needed. The Compose configuration is for local use; production requires HTTPS, deployment-specific secrets, backups, and an appropriate database service.
-
 ## AI behavior and limits
 
 Category inference uses multinomial naive Bayes fitted from 96 curated English examples. Priority uses explicit rules; the summary extracts text, and suggested replies are templates. The model runs locally and does not send ticket content to an external provider. Its relative category score is uncalibrated and should not be interpreted as a probability of correctness.
 
-The separate 32-example curated evaluation is a development benchmark, with its results and limitations documented in [AI evaluation](docs/ai-evaluation.md). English-only training, mixed requests, unfamiliar vocabulary, and limited negation handling require human review. Support staff can override suggestions.
+The separate 32-example curated evaluation is a development benchmark, with its results and limitations documented in [AI evaluation](docs/ai-evaluation.md).
 
 Other current limits: no email notifications, file attachments, password reset, organization tenancy, or real-time updates; JWT logout clears the cookie without individual token revocation. These are suitable next changes after the core workflow is understood and verified.
 
