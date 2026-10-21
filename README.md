@@ -1,4 +1,4 @@
-# AI-Powered Support Ticket Management
+# AI-Powered Support Ticket Management.
 
 A support workspace with a separate NestJS API and Next.js frontend. Customers open tickets and follow conversations; support staff manage assignments, priorities, status, and private notes. A local machine-learning model suggests ticket categories without an external AI service or API key.
 
